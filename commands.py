@@ -20,9 +20,9 @@ def setup_commands(bot):
     async def dk(ctx):
         print("running command ev!dk")    
         props = await fetch_draftkings_props(
-            event_group_id=100009502,         # LoL Event Group ID
-            stat_category="player-props",     # Broadest category for LoL props
-            sport="LoL"
+            event_group_id=42648,
+            stat_category="player-points",
+            sport="NBA"
         )
         # await ctx.send(f"📊 DraftKings NBA Points Props:\n{props}")
         await ctx.send(f"aaaaaa")
