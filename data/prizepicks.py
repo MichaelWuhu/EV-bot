@@ -45,6 +45,9 @@ async def fetch_prizepicks_props():
                 stat = attr.get("stat_display_name")
                 line = attr.get("line_score")
                 description = attr.get("description", "").strip()
+                if "maps 1-2" not in description.lower():
+                    continue  # Skip non-Maps 1–2 props
+
                 full_stat = f"{stat} ({description})" if description else stat
 
                 player_id = relationships.get("new_player", {}).get("data", {}).get("id")

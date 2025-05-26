@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from data.prizepicks import fetch_prizepicks_props
+from data.golgg import get_player_id_from_name, fetch_player_last10_avg_from_golgg
 
 def setup_commands(bot):
     @bot.command()
@@ -55,3 +56,26 @@ def setup_commands(bot):
                 await message.remove_reaction(reaction.emoji, user)
             except Exception:
                 break  # Timeout or error — stop listening
+
+    @bot.command()
+    async def stats(ctx, *, player_name: str):
+        await ctx.send(f"🔍 Fetching stats for **{player_name}**...")
+
+        try:
+            player_id = get_player_id_from_name(player_name)
+            stats = fetch_player_last10_avg_from_golgg(player_id)
+        except Exception as e:
+            return await ctx.send(f"❌ Error: {e}")
+
+        print(f"(COMMANDS): Fetched stats for {player_name}: {stats}")
+
+        embed = discord.Embed(
+            title=f"📊 Last 10 Games — {player_name}",
+            description="Based on Spring 2025 Split",
+            color=0x2ecc71
+        )
+        embed.add_field(name="Avg Kills", value=str(stats['avg_kills']), inline=True)
+        embed.add_field(name="Avg Assists", value=str(stats['avg_assists']), inline=True)
+        embed.add_field(name="Winrate", value=f"{stats['winrate']}%", inline=True)
+
+        await ctx.send(embed=embed)
