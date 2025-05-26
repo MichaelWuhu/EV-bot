@@ -60,11 +60,9 @@ def fetch_player_last10_avg_from_golgg(player_id: int, season="S15", split="Spri
         raise Exception("Match table not found.")
 
     rows = table.find_all("tr")[1:]  # skip header
-    rows = rows[:10][::-1]
 
-    games = []
-    matches = defaultdict(lambda: defaultdict(dict))
-    match_counters = defaultdict(int)
+    # Temp storage to collect maps per opponent (in appearance order)
+    raw_matches = defaultdict(list)
 
     for row in rows:
         cols = row.find_all("td")
@@ -72,45 +70,44 @@ def fetch_player_last10_avg_from_golgg(player_id: int, season="S15", split="Spri
             continue
 
         try:
-            result = cols[1].text.strip()
             kda = cols[2].text.strip()
             opponent = cols[6].text.strip()
-
             kills, deaths, assists = map(int, kda.split("/"))
         except Exception:
             continue
 
-        games.append({
-            "kills": kills,
-            "assists": assists,
-            "win": result == "Victory"
-        })
-
-        # print("matches:", matches)
-        print("opponent:", opponent)
-
-        match_number = match_counters[opponent] + 1
-        matches[opponent][f"match{match_number}"] = {
+        raw_matches[opponent].append({
             "kills": kills,
             "assists": assists
-        }
-        
-        match_counters[opponent] += 1
+        })
 
-        if len(games) >= 10:
-            break
+    # Reverse map order for each series so match1 = oldest
+    matches = defaultdict(lambda: defaultdict(dict))
+    for opponent, maps in raw_matches.items():
+        ordered_maps = maps[::-1]
+        for i, map_stats in enumerate(ordered_maps, start=1):
+            matches[opponent][f"match{i}"] = map_stats
+
+    # Limit to last 10 opponents (most recent series)
+    limited_matches = dict(list(matches.items())[:10])
+
+    games = []
+    for series in limited_matches.values():
+        for match in series.values():
+            games.append({
+                "kills": match["kills"],
+                "assists": match["assists"]
+            })
 
     if not games:
         raise Exception("No valid game data found.")
 
     avg_kills = round(sum(g["kills"] for g in games) / len(games), 2)
     avg_assists = round(sum(g["assists"] for g in games) / len(games), 2)
-    winrate = round(sum(1 for g in games if g["win"]) / len(games) * 100, 1)
 
     return {
         "player_id": player_id,
         "avg_kills": avg_kills,
         "avg_assists": avg_assists,
-        "winrate": winrate,
-        "matches": matches
+        "matches": limited_matches
     }

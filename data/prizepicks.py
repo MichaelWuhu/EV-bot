@@ -69,24 +69,3 @@ async def fetch_prizepicks_props():
                     })
 
             return picks
-
-def compareLoLChance():
-    # CHECKS TODO:
-    # 1. avg kills/assists are above line
-    # 2. prop hit rate
-    # 3. standard deviation
-    # 4. winrate
-    # 5. map count
-    
-
-    # 1. avg kills/assists are above line
-    # code goes here
-    
-    # 2. prop hit rate
-    # 3. standard deviation
-    # 4. winrate
-    # 5. map count
-    
-     
-    pass
-    return 
