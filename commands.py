@@ -204,8 +204,8 @@ async def evaluate_and_send_ev(channel, player: str, stat_type: str, line: float
     embed = discord.Embed(
         title=f"{player} {line} Maps 1-2 {stat_type.title()}",
         description=(
-            f"{player} has cleared this line {hit_rate}% of the time in the last 10.\n"
-            f"They average {avg} Maps 1-2 {stat_type.title()}, which is {difference} {'more' if direction == 'Over' else 'less'} than the line.\n\n"
+            f"{player} has cleared this line **{hit_rate}%** of the time in the last 10.\n"
+            f"They average **{avg}** Maps 1-2 {stat_type.title()}, which is **{difference}** {'more' if direction == 'Over' else 'less'} than the line.\n\n"
             f"{confidence}"
         ),
         color=color

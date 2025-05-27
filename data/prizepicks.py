@@ -59,6 +59,9 @@ async def fetch_prizepicks_props():
 
                 if stat and line is not None and player_id:
                     player_name = player_map.get(player_id, "Unknown Player")
+                    if "+" in player_name:
+                        continue
+                    
                     picks.append({
                         "player": player_name,
                         "stat": full_stat,
