@@ -1,15 +1,15 @@
 import statistics
 
 def score_lol_chance(avg_stat, line, hit_rate):
-    print("📊 EV Scoring Stats:")
-    print(f"  avg_stat: {avg_stat}")
-    print(f"  line: {line}")
-    print(f"  hit_rate: {hit_rate}%")
+    # print("📊 EV Scoring Stats:")
+    # print(f"  avg_stat: {avg_stat}")
+    # print(f"  line: {line}")
+    # print(f"  hit_rate: {hit_rate}%")
 
     score = 0
 
     # ✅ Check if the average performance is above the line
-    if avg_stat > line:
+    if avg_stat*2 > line:
         score += 1
 
     # ✅ Check if historical hit rate is ≥ 70%

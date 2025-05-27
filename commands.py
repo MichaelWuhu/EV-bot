@@ -1,10 +1,40 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
+from dotenv import load_dotenv
+import os
+import asyncio
+
 from data.prizepicks import fetch_prizepicks_props  
 from data.golgg import get_player_id_from_name, fetch_player_last10_avg_from_golgg
 from helpers.LoL.lolhelpers import score_lol_chance, calculate_lol_hit_rate
 
+load_dotenv()
+DISCORD_CHANNEL_ID = os.environ.get("DISCORD_CHANNEL_ID")
+seen_props = set()
+bot_instance = None 
+
 def setup_commands(bot):
+    global bot_instance
+    bot_instance = bot
+
+    @bot.event
+    async def on_ready():
+        global bot_instance
+        bot_instance = bot
+
+        if not monitor_prizepicks.is_running():
+            monitor_prizepicks.start()
+
+        print(f"✅ Logged in as {bot.user} | Monitor running...")
+
+        guild_count = 0
+
+        for guild in bot.guilds:
+            print(f"- {guild.id} (name: {guild.name})")
+            guild_count += 1
+
+        print("Bot is in " + str(guild_count) + " servers")
+
     @bot.command()
     async def prizepicks(ctx):
         props = await fetch_prizepicks_props()
@@ -63,8 +93,8 @@ def setup_commands(bot):
         await ctx.send(f"🔍 Fetching stats for **{player_name}**...")
 
         try:
-            player_id = get_player_id_from_name(player_name)
-            stats = fetch_player_last10_avg_from_golgg(player_id)
+            player_id = await get_player_id_from_name(player_name)
+            stats = await fetch_player_last10_avg_from_golgg(player_id)
         except Exception as e:
             return await ctx.send(f"❌ Error: {e}")
 
@@ -86,18 +116,14 @@ def setup_commands(bot):
         await ctx.send(f"🔍 Fetching stats for **{player}**...")
 
         try:
-            player_id = get_player_id_from_name(player)
-            stats = fetch_player_last10_avg_from_golgg(player_id)
+            player_id = await get_player_id_from_name(player)
+            stats = await fetch_player_last10_avg_from_golgg(player_id)
         except Exception as e:
             return await ctx.send(f"❌ Error: {e}")
 
         matches = stats["matches"]
-        print("matches:", matches)
-
         avg = stats[f"avg_{stat_type}"]
-
         hit_rate = calculate_lol_hit_rate(matches, stat=stat_type, line=line)
-        
         score = score_lol_chance(avg, line, hit_rate)
 
         direction = "Over" if score >= 1 else "Under"
@@ -117,3 +143,73 @@ def setup_commands(bot):
 
         embed.set_footer(text="EV Bot | Based on recent match data")
         await ctx.send(embed=embed)
+
+@tasks.loop(seconds=300)
+async def monitor_prizepicks():
+    await bot_instance.wait_until_ready()
+
+    channel_id_str = DISCORD_CHANNEL_ID
+    if not channel_id_str or not channel_id_str.isdigit():
+        print("❌ DISCORD_CHANNEL_ID not set or invalid")
+        return
+
+    channel = bot_instance.get_channel(int(channel_id_str))
+    if channel is None:
+        print("❌ Could not find channel with ID")
+        return
+
+    try:
+        props = await fetch_prizepicks_props()
+    except Exception as e:
+        print(f"❌ Error fetching props: {e}")
+        return
+    
+    counter = 0
+
+    for prop in props:
+        key = f"{prop['player']}-{prop['stat']}-{prop['line']}"
+        if key not in seen_props:
+            seen_props.add(key)
+
+            stat_type = prop["stat"].split()[2].lower() 
+
+            print(f"📬 Sending EV embed for {prop['player']} {stat_type} {prop['line']}")
+            await evaluate_and_send_ev(channel, prop["player"], stat_type, float(prop["line"]))
+            await asyncio.sleep(1.5)
+
+async def evaluate_and_send_ev(channel, player: str, stat_type: str, line: float):
+    try:
+        player_id = await get_player_id_from_name(player)
+        stats = await fetch_player_last10_avg_from_golgg(player_id)
+    except Exception as e:
+        await channel.send(f"❌ Error evaluating {player} {stat_type}: {e}")
+        return
+
+    matches = stats["matches"]
+    avg = stats.get(f"avg_{stat_type}")
+    if avg is None:
+        return  # Skip unknown stat types
+
+    hit_rate = calculate_lol_hit_rate(matches, stat=stat_type, line=line)
+    score = score_lol_chance(avg, line, hit_rate)
+
+    # if score == 0:
+        # return  # Too weak to post
+
+    direction = "Over" if score >= 1 else "Under"
+    difference = round(abs((2 * avg) - line), 1)
+    confidence = f"🔥 Confidence Score: {score}/2"
+
+    color = 0x00ff99 if score == 2 else (0xffff00 if score == 1 else 0xff4444)
+    embed = discord.Embed(
+        title=f"{player} {line} Maps 1-2 {stat_type.title()}",
+        description=(
+            f"{player} has cleared this line {hit_rate}% of the time in the last 10.\n"
+            f"They average {avg} Maps 1-2 {stat_type.title()}, which is {difference} {'more' if direction == 'Over' else 'less'} than the line.\n\n"
+            f"{confidence}"
+        ),
+        color=color
+    )
+    embed.set_footer(text="EV Bot | Based on recent match data")
+    await channel.send(embed=embed)
+    # await channel.send("test")

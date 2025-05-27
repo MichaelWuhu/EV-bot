@@ -1,22 +1,22 @@
-import requests
+import aiohttp
 from bs4 import BeautifulSoup
 import re
 from collections import defaultdict
 
-
-def get_player_id_from_name(player_name: str, season="S15", split="Spring", tournament="ALL"):
+async def get_player_id_from_name(player_name: str, season="S15", split="Spring", tournament="ALL"):
     url = f"https://gol.gg/players/list/season-{season}/split-{split}/tournament-{tournament}/"
-
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "User-Agent": "Mozilla/5.0",
         "Accept": "text/html"
     }
-    response = requests.get(url, headers=headers)
 
-    if response.status_code != 200:
-        raise Exception("Failed to fetch player list page")
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, headers=headers) as response:
+            if response.status != 200:
+                raise Exception("Failed to fetch player list page")
+            html = await response.text()
 
-    soup = BeautifulSoup(response.text, "html.parser")
+    soup = BeautifulSoup(html, "html.parser")
     table = soup.find("table", class_="table_list")
     if not table:
         raise Exception("Player table not found")
@@ -25,11 +25,10 @@ def get_player_id_from_name(player_name: str, season="S15", split="Spring", tour
         cols = row.find_all("td")
         if not cols:
             continue
-
         link = cols[0].find("a")
         if not link:
             continue
-        
+
         name = link.text.strip()
         normalized_name = re.sub(r'[^a-zA-Z0-9]', '', name.lower().strip())
         normalized_player = re.sub(r'[^a-zA-Z0-9]', '', player_name.lower().strip())
@@ -43,27 +42,27 @@ def get_player_id_from_name(player_name: str, season="S15", split="Spring", tour
     raise Exception(f"Player '{player_name}' not found")
 
 
-def fetch_player_last10_avg_from_golgg(player_id: int, season="S15", split="Spring", tournament="ALL"):
+async def fetch_player_last10_avg_from_golgg(player_id: int, season="S15", split="Spring", tournament="ALL"):
     url = f"https://gol.gg/players/player-matchlist/{player_id}/season-{season}/split-{split}/tournament-{tournament}/"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "User-Agent": "Mozilla/5.0",
         "Accept": "text/html"
     }
-    response = requests.get(url, headers=headers)
 
-    if response.status_code != 200:
-        raise Exception(f"Failed to fetch page: {url}")
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, headers=headers) as response:
+            if response.status != 200:
+                raise Exception(f"Failed to fetch page: {url}")
+            html = await response.text()
 
-    soup = BeautifulSoup(response.text, "html.parser")
+    soup = BeautifulSoup(html, "html.parser")
     table = soup.find("table", class_="table_list")
     if not table:
         raise Exception("Match table not found.")
 
-    rows = table.find_all("tr")[1:]  # skip header
+    rows = table.find_all("tr")[1:]
 
-    # Temp storage to collect maps per opponent (in appearance order)
     raw_matches = defaultdict(list)
-
     for row in rows:
         cols = row.find_all("td")
         if len(cols) < 7:
@@ -81,23 +80,14 @@ def fetch_player_last10_avg_from_golgg(player_id: int, season="S15", split="Spri
             "assists": assists
         })
 
-    # Reverse map order for each series so match1 = oldest
     matches = defaultdict(lambda: defaultdict(dict))
     for opponent, maps in raw_matches.items():
         ordered_maps = maps[::-1]
         for i, map_stats in enumerate(ordered_maps, start=1):
             matches[opponent][f"match{i}"] = map_stats
 
-    # Limit to last 10 opponents (most recent series)
     limited_matches = dict(list(matches.items())[:10])
-
-    games = []
-    for series in limited_matches.values():
-        for match in series.values():
-            games.append({
-                "kills": match["kills"],
-                "assists": match["assists"]
-            })
+    games = [match for series in limited_matches.values() for match in series.values()]
 
     if not games:
         raise Exception("No valid game data found.")
