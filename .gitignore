@@ -1,4 +1,4 @@
 .env
 __pycache__/
 venv/
-prizepicks.json
+data/prizepicks.json
