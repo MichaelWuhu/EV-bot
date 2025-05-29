@@ -144,7 +144,7 @@ def setup_commands(bot):
         embed.set_footer(text="EV Bot | Based on recent match data")
         await ctx.send(embed=embed)
 
-@tasks.loop(seconds=300)
+@tasks.loop(seconds=10800)
 async def monitor_prizepicks():
     await bot_instance.wait_until_ready()
 
