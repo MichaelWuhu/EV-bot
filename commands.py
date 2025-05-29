@@ -134,8 +134,8 @@ def setup_commands(bot):
         embed = discord.Embed(
             title=f"{player} {line} Maps 1-2 {stat_type.title()}",
             description=(
-                f"{player} has cleared this line {hit_rate}% of the time in the last 10,\n"
-                f"They average {avg} Maps 1-2 {stat_type.title()}, which is {difference} {'more' if direction == 'Over' else 'less'} than the line.\n\n"
+                f"{player} has cleared this line **{hit_rate}%** of the time in the last 10.\n"
+                f"They average **{avg}** Maps 1-2 {stat_type.title()}, which is **{difference}** {'more' if direction == 'Over' else 'less'} than the line.\n\n"
                 f"{confidence}"
             ),
             color=color
@@ -175,41 +175,41 @@ async def monitor_prizepicks():
 
             print(f"📬 Sending EV embed for {prop['player']} {stat_type} {prop['line']}")
             await evaluate_and_send_ev(channel, prop["player"], stat_type, float(prop["line"]))
-            await asyncio.sleep(1.5)
+            # await asyncio.sleep(1.5)
 
-async def evaluate_and_send_ev(channel, player: str, stat_type: str, line: float):
-    try:
-        player_id = await get_player_id_from_name(player)
-        stats = await fetch_player_last10_avg_from_golgg(player_id)
-    except Exception as e:
-        await channel.send(f"❌ Error evaluating {player} {stat_type}: {e}")
-        return
+# async def evaluate_and_send_ev(channel, player: str, stat_type: str, line: float):
+#     try:
+#         player_id = await get_player_id_from_name(player)
+#         stats = await fetch_player_last10_avg_from_golgg(player_id)
+#     except Exception as e:
+#         await channel.send(f"❌ Error evaluating {player} {stat_type}: {e}")
+#         return
 
-    matches = stats["matches"]
-    avg = stats.get(f"avg_{stat_type}")
-    if avg is None:
-        return  # Skip unknown stat types
+#     matches = stats["matches"]
+#     avg = stats.get(f"avg_{stat_type}")
+#     if avg is None:
+#         return  # Skip unknown stat types
 
-    hit_rate = calculate_lol_hit_rate(matches, stat=stat_type, line=line)
-    score = score_lol_chance(avg, line, hit_rate)
+#     hit_rate = calculate_lol_hit_rate(matches, stat=stat_type, line=line)
+#     score = score_lol_chance(avg, line, hit_rate)
 
-    # if score == 0:
-        # return  # Too weak to post
+#     # if score == 0:
+#         # return  # Too weak to post
 
-    direction = "Over" if score >= 1 else "Under"
-    difference = round(abs((2 * avg) - line), 1)
-    confidence = f"🔥 Confidence Score: {score}/2"
+#     direction = "Over" if score >= 1 else "Under"
+#     difference = round(abs((2 * avg) - line), 1)
+#     confidence = f"🔥 Confidence Score: {score}/2"
 
-    color = 0x00ff99 if score == 2 else (0xffff00 if score == 1 else 0xff4444)
-    embed = discord.Embed(
-        title=f"{player} {line} Maps 1-2 {stat_type.title()}",
-        description=(
-            f"{player} has cleared this line **{hit_rate}%** of the time in the last 10.\n"
-            f"They average **{avg}** Maps 1-2 {stat_type.title()}, which is **{difference}** {'more' if direction == 'Over' else 'less'} than the line.\n\n"
-            f"{confidence}"
-        ),
-        color=color
-    )
-    embed.set_footer(text="EV Bot | Based on recent match data")
-    await channel.send(embed=embed)
-    # await channel.send("test")
+#     color = 0x00ff99 if score == 2 else (0xffff00 if score == 1 else 0xff4444)
+#     embed = discord.Embed(
+#         title=f"{player} {line} Maps 1-2 {stat_type.title()}",
+#         description=(
+#             f"{player} has cleared this line **{hit_rate}%** of the time in the last 10.\n"
+#             f"They average **{avg}** Maps 1-2 {stat_type.title()}, which is **{difference}** {'more' if direction == 'Over' else 'less'} than the line.\n\n"
+#             f"{confidence}"
+#         ),
+#         color=color
+#     )
+#     embed.set_footer(text="EV Bot | Based on recent match data")
+#     await channel.send(embed=embed)
+#     # await channel.send("test")
