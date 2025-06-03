@@ -144,7 +144,7 @@ def setup_commands(bot):
         embed.set_footer(text="EV Bot | Based on recent match data")
         await ctx.send(embed=embed)
 
-@tasks.loop(seconds=10800)
+@tasks.loop(seconds=3600)
 async def monitor_prizepicks():
     await bot_instance.wait_until_ready()
 
@@ -193,8 +193,9 @@ async def evaluate_and_send_ev(channel, player: str, stat_type: str, line: float
     hit_rate = calculate_lol_hit_rate(matches, stat=stat_type, line=line)
     score = score_lol_chance(avg, line, hit_rate)
 
-    # if score == 0:
-        # return  # Too weak to post
+    # only post greens
+    if score == 0 or score == 1:
+        return
 
     direction = "Over" if score >= 1 else "Under"
     difference = round(abs((2 * avg) - line), 1)
